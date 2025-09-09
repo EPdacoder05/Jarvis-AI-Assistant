@@ -1,0 +1,103 @@
+# Example automation for voice command processing
+# This shows how to integrate speech-to-text with Jarvis
+
+automation:
+  - alias: "Voice Command to Jarvis"
+    description: "Process voice commands using Jarvis backend"
+    trigger:
+      # This would typically be triggered by a voice assistant integration
+      # like Google Assistant, Alexa, or a local STT service
+      - platform: event
+        event_type: voice_command_received
+    action:
+      - service: script.jarvis_process_command
+        data:
+          command: "{{ trigger.event.data.text }}"
+
+  # Example: Integration with Google Assistant via IFTTT
+  - alias: "Google Assistant to Jarvis"
+    description: "Route Google Assistant commands through Jarvis"
+    trigger:
+      - platform: webhook
+        webhook_id: google_assistant_jarvis
+    action:
+      - service: script.jarvis_process_command
+        data:
+          command: "{{ trigger.data.command }}"
+
+  # Example: Integration with local speech-to-text
+  - alias: "Local STT to Jarvis"
+    description: "Process local speech-to-text through Jarvis"
+    trigger:
+      - platform: mqtt
+        topic: "jarvis/stt/result"
+    action:
+      - service: script.jarvis_process_command
+        data:
+          command: "{{ trigger.payload_json.text }}"
+
+# Example scene definitions that Jarvis can activate
+scene:
+  - name: "Movie Night"
+    entities:
+      light.living_room_lights:
+        state: on
+        brightness: 50
+        color_name: blue
+      light.kitchen_lights:
+        state: off
+      media_player.tv:
+        state: on
+      climate.main_thermostat:
+        temperature: 68
+
+  - name: "Party Mode"
+    entities:
+      light.living_room_lights:
+        state: on
+        brightness: 255
+        color_name: purple
+      light.kitchen_lights:
+        state: on
+        brightness: 255
+      media_player.spotify:
+        state: on
+
+  - name: "Sleep Time"
+    entities:
+      light.all_lights:
+        state: off
+      climate.main_thermostat:
+        temperature: 65
+      media_player.all:
+        state: off
+
+# Example device configurations that Jarvis can control
+light:
+  # Example light groups that Jarvis can understand
+  - platform: group
+    name: "Living Room Lights"
+    entities:
+      - light.living_room_ceiling
+      - light.living_room_lamp1
+      - light.living_room_lamp2
+
+  - platform: group
+    name: "Bedroom Lights"
+    entities:
+      - light.bedroom_ceiling
+      - light.bedroom_nightstand1
+      - light.bedroom_nightstand2
+
+# Example climate configuration
+climate:
+  - platform: generic_thermostat
+    name: "Main Thermostat"
+    heater: switch.heater
+    target_sensor: sensor.temperature
+    min_temp: 60
+    max_temp: 85
+    ac_mode: false
+    target_temp: 70
+    cold_tolerance: 0.3
+    hot_tolerance: 0

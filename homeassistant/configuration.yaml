@@ -1,0 +1,231 @@
+# Home Assistant Configuration for Jarvis AI Assistant
+# Add these sections to your configuration.yaml file
+
+# REST Commands for Jarvis Integration
+rest_command:
+  jarvis_speak:
+    url: "https://YOUR_API_GATEWAY_URL/speak"
+    method: POST
+    headers:
+      Content-Type: application/json
+      x-api-key: "YOUR_API_KEY"
+    payload: >
+      {
+        "text": "{{ message }}",
+        "voice": "{{ voice | default('Joanna') }}",
+        "format": "{{ format | default('mp3') }}"
+      }
+    
+  jarvis_command:
+    url: "https://YOUR_API_GATEWAY_URL/command"
+    method: POST
+    headers:
+      Content-Type: application/json
+      x-api-key: "YOUR_API_KEY"
+    payload: >
+      {
+        "command": "{{ command }}"
+      }
+
+# Scripts for common Jarvis actions
+script:
+  jarvis_announce:
+    alias: "Jarvis Announcement"
+    description: "Make Jarvis speak a message"
+    fields:
+      message:
+        description: "Message to speak"
+        example: "Good morning! The weather is sunny today."
+      voice:
+        description: "Voice to use (optional)"
+        example: "Joanna"
+        default: "Joanna"
+    sequence:
+      - service: rest_command.jarvis_speak
+        data:
+          message: "{{ message }}"
+          voice: "{{ voice }}"
+
+  jarvis_process_command:
+    alias: "Process Jarvis Command"
+    description: "Send a natural language command to Jarvis"
+    fields:
+      command:
+        description: "Natural language command"
+        example: "Turn on the living room lights"
+    sequence:
+      - service: rest_command.jarvis_command
+        data:
+          command: "{{ command }}"
+
+  jarvis_welcome_home:
+    alias: "Jarvis Welcome Home"
+    description: "Welcome home routine with Jarvis"
+    sequence:
+      - service: script.jarvis_announce
+        data:
+          message: "Welcome home! I've turned on the lights and set the temperature to a comfortable 72 degrees."
+      - service: light.turn_on
+        target:
+          entity_id: light.living_room_lights
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.main_thermostat
+        data:
+          temperature: 72
+
+  jarvis_goodnight:
+    alias: "Jarvis Goodnight Routine"
+    description: "Goodnight routine with Jarvis"
+    sequence:
+      - service: script.jarvis_announce
+        data:
+          message: "Good night! I'm turning off all lights and locking the doors. Sleep well!"
+      - service: light.turn_off
+        target:
+          entity_id: all
+      - service: lock.lock
+        target:
+          entity_id: all
+      - service: alarm_control_panel.alarm_arm_night
+        target:
+          entity_id: alarm_control_panel.security_system
+
+# Automations for voice-triggered actions
+automation:
+  - alias: "Jarvis Voice Command Processing"
+    description: "Process voice commands through Jarvis"
+    trigger:
+      - platform: event
+        event_type: jarvis_voice_command
+    action:
+      - service: script.jarvis_process_command
+        data:
+          command: "{{ trigger.event.data.command }}"
+
+  - alias: "Jarvis Morning Briefing"
+    description: "Morning briefing from Jarvis"
+    trigger:
+      - platform: time
+        at: "07:00:00"
+    condition:
+      - condition: state
+        entity_id: binary_sensor.workday_sensor
+        state: 'on'
+    action:
+      - service: script.jarvis_announce
+        data:
+          message: >
+            Good morning! Today is {{ now().strftime('%A, %B %d') }}. 
+            The weather outside is {{ states('weather.home') }} with a temperature of {{ state_attr('weather.home', 'temperature') }} degrees.
+            {% if states('calendar.work_calendar') == 'on' %}
+            You have {{ state_attr('calendar.work_calendar', 'message') }} on your calendar today.
+            {% endif %}
+            Have a great day!
+
+  - alias: "Jarvis Security Alert"
+    description: "Security alert announcement"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.front_door
+        to: 'on'
+      - platform: state
+        entity_id: binary_sensor.back_door
+        to: 'on'
+    condition:
+      - condition: state
+        entity_id: alarm_control_panel.security_system
+        state: 'armed_away'
+    action:
+      - service: script.jarvis_announce
+        data:
+          message: "Security alert: {{ trigger.entity_id | replace('binary_sensor.', '') | replace('_', ' ') | title }} has been opened while the system is armed."
+
+  - alias: "Jarvis Low Battery Alert"
+    description: "Announce low battery devices"
+    trigger:
+      - platform: time
+        at: "20:00:00"
+    condition:
+      - condition: template
+        value_template: >
+          {{ states.sensor | selectattr('attributes.device_class', 'eq', 'battery') 
+             | selectattr('state', 'lt', 20) | list | count > 0 }}
+    action:
+      - service: script.jarvis_announce
+        data:
+          message: >
+            Battery alert: The following devices have low battery levels:
+            {% for entity in states.sensor | selectattr('attributes.device_class', 'eq', 'battery') | selectattr('state', 'lt', 20) %}
+            {{ entity.attributes.friendly_name or entity.entity_id }} at {{ entity.state }}%.
+            {% endfor %}
+
+# Input helpers for Jarvis configuration
+input_select:
+  jarvis_voice:
+    name: "Jarvis Voice"
+    options:
+      - "Joanna"
+      - "Matthew"
+      - "Amy"
+      - "Brian"
+      - "Emma"
+      - "Ivy"
+      - "Justin"
+      - "Kendra"
+      - "Kimberly"
+      - "Salli"
+    initial: "Joanna"
+    icon: mdi:account-voice
+
+input_boolean:
+  jarvis_announcements:
+    name: "Jarvis Announcements"
+    initial: true
+    icon: mdi:microphone
+
+  jarvis_morning_briefing:
+    name: "Jarvis Morning Briefing"
+    initial: true
+    icon: mdi:weather-sunny
+
+# Sensors for Jarvis status
+sensor:
+  - platform: template
+    sensors:
+      jarvis_status:
+        friendly_name: "Jarvis Status"
+        value_template: >
+          {% if is_state('input_boolean.jarvis_announcements', 'on') %}
+            Active
+          {% else %}
+            Disabled
+          {% endif %}
+        icon_template: >
+          {% if is_state('input_boolean.jarvis_announcements', 'on') %}
+            mdi:robot
+          {% else %}
+            mdi:robot-off
+          {% endif %}
+
+# Dashboard card configuration (for Lovelace UI)
+# Add this to your dashboard YAML or use the UI editor:
+
+# type: vertical-stack
+# cards:
+#   - type: entity
+#     entity: sensor.jarvis_status
+#     name: "Jarvis AI Assistant"
+#   - type: entities
+#     title: "Jarvis Controls"
+#     entities:
+#       - input_boolean.jarvis_announcements
+#       - input_boolean.jarvis_morning_briefing
+#       - input_select.jarvis_voice
+#   - type: button
+#     name: "Test Jarvis"
+#     tap_action:
+#       action: call-service
+#       service: script.jarvis_announce
+#       service_data:
+#         message: "Hello! This is a test of the Jarvis AI Assistant system."
