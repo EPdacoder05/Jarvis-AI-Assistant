@@ -210,7 +210,8 @@ class SecureJarvisAssistant:
         # Check for suspicious patterns
         suspicious_patterns = [
             'eval(', 'exec(', 'import os', 'subprocess', '__import__',
-            'rm -rf', 'del /f', 'format c:', 'DROP TABLE', 'DELETE FROM'
+            'rm -rf', 'del /f', 'format c:', 'DROP TABLE', 'DELETE FROM',
+            'drop table', 'delete from', 'insert into', 'update set'
         ]
         
         user_input_lower = user_input.lower()
