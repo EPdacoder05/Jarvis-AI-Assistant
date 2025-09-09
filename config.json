@@ -1,0 +1,39 @@
+{
+  "app_config": {
+    "name": "jarvis-ai-assistant",
+    "version": "1.0.0",
+    "description": "Secure AI Assistant with Home Automation",
+    "environment": "production"
+  },
+  "security_config": {
+    "enable_cognito_auth": false,
+    "enable_security_hub": true,
+    "enable_detailed_logging": true,
+    "max_commands_per_session": 100,
+    "session_timeout_minutes": 30,
+    "rate_limit_per_minute": 50,
+    "max_input_length": 5000
+  },
+  "aws_config": {
+    "region": "us-east-1",
+    "lambda_timeout_seconds": 30,
+    "lambda_memory_mb": 512,
+    "api_gateway_stage": "prod",
+    "log_retention_days": 30
+  },
+  "home_assistant_config": {
+    "enable_ha_integration": true,
+    "allowed_domains": ["light", "switch", "climate", "lock", "cover"],
+    "command_timeout_seconds": 10,
+    "max_retries": 3
+  },
+  "monitoring_config": {
+    "cloudwatch_namespace": "JarvisAI",
+    "enable_xray_tracing": false,
+    "alarm_thresholds": {
+      "error_rate_percent": 5,
+      "response_time_ms": 5000,
+      "failed_auth_per_hour": 10
+    }
+  }
+}
